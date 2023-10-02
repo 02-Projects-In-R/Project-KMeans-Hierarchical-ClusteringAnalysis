@@ -1,0 +1,221 @@
+
+### Project K-Means and Hierarchical clustering analysis
+
+## POINT 1:
+
+Data source: https://www.kaggle.com/datasets/toramky/automobile-dataset
+
+```{r}
+# Reading the dataset:
+automobile <- read.csv('Automobile_data.csv', header = TRUE)
+head(automobile)
+```
+
+```{r}
+# Filtering the columns we will use for the assignment:
+df <- automobile[, c(1, 10, 11, 12, 13, 16, 17, 22, 25, 26)]
+head(df)
+```
+
+```{r}
+# Verifying the data
+dim(df)
+```
+### i) Use R to help you:
+
+###     a) Count how many of the cars in the original dataset has a Symboling value of 1:
+
+```{r}
+table(df['symboling'])
+```
+--> 54 cars have the symboling value of 1.
+
+###     b) Verify (using R) there are exactly 6 possible values for Symboling by listing the possible values:
+
+```{r}
+unique(df$symboling)
+```
+--> As we can see in the R ouput, there are 6 possible values for the Symboling variable.
+
+### ii) For this dataset, do you recommend using scale() to standardize/normalize the data? Why or why not?
+
+--> Yes, I do recommend using scale() to standardize/normalize the data because of the highest units in the price variable will make that this attribute has larger impact on the distance calculation than the other variables of the dataset.
+
+### iii) k-means() require numeric data. Are all the variables in the correct 'form' for kmeans()? How do you use R to check? If there are variables are not in the correct form, you will need to make the conversion:
+
+--> Validating the types of variables in the dataset:
+
+```{r}
+str(df)
+```
+We can see in the result of the str() function that we have 3 variables in the dataset that are strings: num of cylinders, horsepower and price.
+
+--> Transforming the variables 'horsepower' and 'price' from string to numerical:
+
+```{r}
+library(dplyr)
+df <- df %>% mutate_at(c('horsepower', 'price'), as.numeric)
+```
+
+```{r}
+#Verifying the result:
+str(df)
+```
+--> Replacing the variable 'num.of.cylinders' numbers written in words with numbers:
+
+```{r}
+#Validating the values in the variable:
+unique(df$num.of.cylinders)
+```
+
+```{r}
+# Replacing the numbers written as a text for integers
+cylinder_mapping <- c('four' = 4, 'six' = 6, 'five' = 5, 'three' = 3, 'twelve' = 12, 'two' = 2, 'eight' = 8)
+df$cylinders <- as.integer(cylinder_mapping[df$num.of.cylinders])
+```
+
+```{r}
+str(df)
+```
+### iv) Are there any incomplete data in this dataset for the purpose of this exercise? How do you use R to check if there is incomplete data in this dataset for the purpose of this exercise? How do you use R to check if there is incomplete data for the columns (variables of interest) in this dataset? If there is incomplete data, what will you do?
+
+--> Validating if there are missing values in the dataset:
+
+```{r}
+summary(df)
+```
+
+```{r}
+sum(is.na(df))
+```
+
+There are 6 missing values in the dataset, 2 in the horsepower variable and 4 in the price variable.
+
+--> Verifying the positions of the missing values in each dataset's column.
+
+```{r}
+apply(is.na(df), 2, which)
+```
+--> Validating the distribution of the columns with missing values:
+
+```{r}
+boxplot(df$horsepower, 
+        main = "Horsepower column distribution",
+        col = "orange", border = "brown", horizontal = TRUE, notch = TRUE)
+```
+```{r}
+boxplot(df$price, 
+        main = "Price column distribution",
+        col = "orange", border = "brown", horizontal = TRUE, notch = TRUE)
+```
+As we can see, both columns (horsepower and price) are skewed to the right and have outliers, therefore we will replace the missing values with the median that is less sensitive to outliers' presence.
+
+```{r}
+horsep_med <- median(df$horsepower, na.rm = TRUE)
+price_med <- median(df$price, na.rm = TRUE)
+df['horsepower'][is.na(df['horsepower'])] <- horsep_med
+df['price'][is.na(df['price'])] <- price_med
+```
+
+```{r}
+summary(df)
+```
+
+```{r}
+sum(is.na(df))
+```
+### v) Using R, perform kmeans() and form 6 clusters. User the table() command to find out if the cluster so formed are grouped such that they match Symboling.
+
+--> Removing the num.of.cylinders variable:
+
+```{r}
+df1 <- df[-c(6)]
+head(df1)
+```
+
+--> Scaling the data:
+
+```{r}
+df_sc <- scale(df1)
+head(df_sc)
+```
+
+--> Forming the clusters:
+
+```{r}
+set.seed(123)
+df_k <- kmeans(df_sc, 6, nstart = 25)
+print(df_k)
+```
+--> Adding the cluster to the dataset:
+```{r}
+df_clusters <- cbind(df1, cluster = df_k$cluster)
+```
+
+```{r}
+head(df_clusters)
+```
+```{r}
+#Validating the number of observations in each cluster vs the groups formed in the 'Symboling' variable:
+table(df_clusters$cluster)
+```
+```{r}
+table(df$symboling)
+```
+--> Comparing the distribution in the 'Symboling' variable vs the distribution in each cluster, we can see that they do not match. In the first cluster, we have 36 observations whereas in the first level of the symboling column (-2) we have just 3 observations. The opposite happens in the third cluster which has 8 observations whereas in the 3rd level of the symboling column, there are 67 observations.
+
+### vi) Make at leat one beautiful plot to visualize the k-means using R.
+
+```{r}
+library('factoextra')
+fviz_cluster(df_k, data = df1,
+             palette = c("#2E8B57", "#2297E6", "#28E2E5", "#CD0BBC", "#FF6A6A", "#FF69B4"),
+             ellipse.type = "euclid",
+             star.plot = TRUE,
+             repel = TRUE,
+             ggtheme = theme_minimal()
+)
+```
+### vii) Instead of kmeans, use agglomerative hierarchical algorithm to cluster using a linkage method of you choise. Show your clustering results using as many displays, graphs and plot that are televant. Using k = 6, find out if the clusters formed are grouped such that they match Symboling. As in part (v), your solution should be presented in a table.
+
+--> Computing the dissimilarity matrix:
+
+```{r}
+head(df_sc)
+```
+```{r}
+dis_matrix <- dist(df_sc, method = 'euclidean')
+df_hc <- hclust(dis_matrix, method = 'ward.D2')
+df_hc
+```
+
+--> Visualizing the dendograms:
+
+```{r}
+fviz_dend(df_hc, k = 6, 
+          cex = 0.5, 
+          k_colors = c("#2E8B57", "#2297E6", "#28E2E5", "#CD0BBC", "#FF6A6A", "#FF69B4"),
+          color_labels_by_k = TRUE,
+          rect = TRUE)
+```
+```{r}
+fviz_dend(df_hc, k = 6, 
+          cex = 0.5, 
+          k_colors = c("#2E8B57", "#2297E6", "#28E2E5", "#CD0BBC", "#FF6A6A", "#FF69B4"),
+          color_labels_by_k = TRUE,
+          rect_fill = TRUE,
+          type = 'circular')
+```
+--> Cutting the tree into 6 groups:
+```{r}
+df_groups <- cutree(df_hc, k = 6)
+```
+
+```{r}
+#Validating the number of observations in each hierarchical cluster vs the groups formed in the 'Symboling' variable:
+table(df_groups)
+```
+```{r}
+table(df$symboling)
+```
+--> Comparing the distribution in the 'Symboling' variable vs the distribution in each hierarchical cluster, we can see that they do not match. In the first hierarchical cluster, we have 27 observations whereas in the first level of the symboling column (-2) we have just 3 observations. The opposite happens in the fifth hierarchical cluster which has 9 observations whereas in the second level of the symboling column, there are 32 observations.
