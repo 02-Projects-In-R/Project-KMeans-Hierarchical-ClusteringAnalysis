@@ -1,1 +1,1 @@
-# Project-KMeans-Hierarchical-ClusteringAnalysis
+This project involves the exploration and application of clustering algorithms, specifically k-means and agglomerative hierarchical, on an automobile dataset. The primary aim is to understand patterns within the data and assess if clusters align with the 'Symboling' variable.
